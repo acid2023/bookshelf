@@ -9,4 +9,4 @@ class Book(models.Model):
     short_description = models.TextField()
 
     def __str__(self) -> str:
-        return f"{self.title} ({self.author_full_name})"
+        return f"Book: {self.title}. \nAuthor: ({self.author_full_name})"
