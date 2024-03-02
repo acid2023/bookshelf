@@ -1,54 +1,15 @@
 from django.shortcuts import render
-from books.models import Book
-import lorem  # type: ignore
-
-import random
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.template.defaultfilters import linebreaksbr
-from functools import wraps
-from typing import Callable
+from django.forms.models import model_to_dict
 
-
-DB_FILEDS = [
-    "title",
-    "author_full_name",
-    "year_of_publishing",
-    "copies_printed",
-    "short_description",
-]
-
-
-def get_lorem_name() -> str:
-    name_1 = lorem.sentence().split()[0]
-    name_2 = lorem.sentence().split()[0]
-    name_3 = lorem.sentence().split()[0]
-    return f"{name_1} {name_2} {name_3}"
-
-
-def create_lorem_book() -> Book:
-    title = lorem.sentence()
-    author_full_name = get_lorem_name()
-    year_of_publishing = random.randint(1900, 2022)
-    copies_printed = random.randint(0, 100)
-    short_description = lorem.paragraph()
-    new_book = Book(title=title, author_full_name=author_full_name, year_of_publishing=year_of_publishing,
-                    copies_printed=copies_printed, short_description=short_description)
-    return new_book
-
-
-def handle_db_erros(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            return HttpResponseBadRequest(str(e))
-    return wrapper
+from books.models import Book
+from books.utils import create_lorem_book, handle_db_erros
 
 
 @handle_db_erros
 def create_books_handler(request: HttpRequest) -> HttpResponse:
-    for i in range(10):
+    for _ in range(10):
         create_lorem_book().save()
     return HttpResponse("OK")
 
@@ -58,18 +19,9 @@ def books_handler(request: HttpRequest) -> HttpResponse:
     books = Book.objects.all()
     if not books:
         return HttpResponseBadRequest("No books found - database is empty")
-    columns = ['id'] + DB_FILEDS
-    rows = []
-    for book in books:
-        row = []
-        row.append(book.id)
-        for field in columns[1:]:
-            row.append(getattr(book, field))
-        rows.append(row)
-    context = {
-        "columns": columns,
-        "rows": rows
-    }
+    columns = model_to_dict(books[0]).keys()
+    rows = [model_to_dict(book).values() for book in books]
+    context = {"columns": columns, "rows": rows}
     return render(request, "table.html", context)
 
 
